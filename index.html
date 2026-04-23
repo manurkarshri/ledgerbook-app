@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="LedgerBook" />
+  <title>LedgerBook</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root {
+      --bg: #070b14;
+      --surface: #151923;
+      --surface-2: #1d2230;
+      --line: #2a3142;
+      --text: #eef2ff;
+      --muted: #a6adbb;
+      --green: #22c55e;
+      --red: #ff5b5b;
+      --blue: #2ea3ff;
+      --orange: #f59e0b;
+      --shadow: 0 12px 30px rgba(0,0,0,.22);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .app {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px 16px 36px;
+    }
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .title { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; margin: 0; }
+    .subtitle { color: var(--muted); margin-top: 4px; font-size: .92rem; }
+    .top-actions { display: flex; gap: 10px; flex-shrink: 0; }
+    .icon-btn, .seg-btn, .ghost-btn, .primary-btn, .secondary-btn {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 14px;
+      cursor: pointer;
+      font: inherit;
+      box-shadow: var(--shadow);
+    }
+    .icon-btn { min-width: 48px; min-height: 48px; }
+    .primary-btn { background: var(--blue); border-color: transparent; color: white; box-shadow: none; }
+    .secondary-btn { background: var(--surface-2); }
+    .ghost-btn { background: transparent; box-shadow: none; }
+    .month-switch {
+      display:flex; align-items:center; justify-content:space-between;
+      background: var(--surface); border:1px solid var(--line); border-radius: var(--radius);
+      padding: 14px 16px; margin: 10px 0 14px; box-shadow: var(--shadow);
+    }
+    .month-label { font-size: 1.25rem; font-weight: 700; }
+    .month-nav { color: var(--red); background: transparent; border: none; font-size: 2rem; line-height: 1; cursor: pointer; }
+    .cards { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .card {
+      background: var(--surface); border:1px solid var(--line); border-radius: var(--radius); padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card.full { grid-column: 1 / -1; }
+    .label { color: var(--muted); font-size: 1rem; margin-bottom: 10px; }
+    .value { font-size: 1.95rem; font-weight: 800; letter-spacing: -.02em; }
+    .green { color: var(--green); }
+    .red { color: var(--red); }
+    .blue { color: var(--blue); }
+    .orange { color: var(--orange); }
+    .section-head {
+      display:flex; align-items:center; justify-content:space-between; gap:10px; margin:20px 0 10px;
+    }
+    .section-title { font-size: 1.2rem; font-weight: 800; margin: 0; }
+    .filter-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 10px; }
+    select, input[type="text"], input[type="number"], input[type="date"], textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 13px 14px;
+      font: inherit;
+      outline: none;
+    }
+    textarea { min-height: 92px; resize: vertical; }
+    .transaction-list { display:flex; flex-direction:column; gap: 12px; }
+    .tx {
+      background: transparent; border-bottom: 1px solid var(--line); padding: 10px 2px 14px;
+      display:grid; grid-template-columns:1fr auto; gap:10px; cursor:pointer;
+    }
+    .tx-title { font-size: 1.12rem; font-weight: 700; }
+    .tx-meta, .tx-note, .tx-date { color: var(--muted); }
+    .tx-meta, .tx-note { margin-top: 5px; }
+    .tx-date { margin-top: 6px; font-size: .95rem; }
+    .hidden { display:none !important; }
+    .tabs { display:flex; gap:10px; margin: 10px 0 16px; }
+    .seg-btn.active { background: var(--surface-2); outline: 1px solid #586277; }
+    .empty {
+      padding: 28px 14px; text-align:center; color: var(--muted);
+      border: 1px dashed var(--line); border-radius: var(--radius); background: rgba(255,255,255,.02);
+    }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+      display:flex; align-items:center; justify-content:center; padding:16px; z-index:999;
+    }
+    .modal {
+      width: min(760px, 100%); max-height: 92vh; overflow:auto;
+      background: #131823; border:1px solid var(--line); border-radius: 28px; box-shadow: var(--shadow); padding: 18px;
+    }
+    .modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
+    .modal-title { font-size: 1.7rem; font-weight: 800; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap: 12px; }
+    .form-grid .full { grid-column:1 / -1; }
+    .field-label { color: var(--muted); margin: 2px 0 6px; font-size: .95rem; }
+    .attachment-row { display:flex; gap:10px; flex-wrap:wrap; }
+    .chip { display:inline-flex; gap:8px; align-items:center; border:1px solid var(--line); background: var(--surface-2); padding:10px 12px; border-radius:999px; color:var(--muted); font-size:.92rem; }
+    .detail-grid { display:grid; grid-template-columns: 160px 1fr; gap: 14px 18px; }
+    .detail-grid .k { color: var(--muted); }
+    .detail-card { margin-bottom: 18px; }
+    .preview-img { max-width:100%; border-radius:16px; border:1px solid var(--line); }
+    .chart-card { margin-top: 6px; }
+    .chart-title { margin:0 0 14px; font-size:1.05rem; font-weight:800; }
+    .bar-chart { display:flex; align-items:flex-end; gap:26px; height:260px; padding: 20px 10px 10px; border-radius:16px; background: var(--surface-2); border:1px solid var(--line); }
+    .bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:10px; height:100%; }
+    .bar-value { font-size:.88rem; color: var(--muted); }
+    .bar { width:100%; max-width:190px; border-radius:12px 12px 0 0; min-height:4px; }
+    .bar-label { color: var(--muted); }
+    .hchart { display:flex; flex-direction:column; gap:12px; padding: 14px; border-radius:16px; background: var(--surface-2); border:1px solid var(--line); }
+    .hrow { display:grid; grid-template-columns: 150px 1fr auto; gap: 10px; align-items:center; }
+    .track { height:20px; background:#0d1118; border-radius:999px; overflow:hidden; border:1px solid var(--line); }
+    .fill { height:100%; background: var(--red); border-radius:999px; }
+    .small { font-size:.88rem; color: var(--muted); }
+    .toolbar-inline { display:flex; gap:10px; flex-wrap:wrap; }
+    .danger { color:#ff8a8a; border-color:#6b2f39; }
+    .note-banner { font-size:.9rem; color: var(--muted); margin-top: 6px; }
+
+    @media (max-width: 700px) {
+      .cards, .form-grid { grid-template-columns:1fr; }
+      .detail-grid { grid-template-columns: 1fr; gap:8px; }
+      .hrow { grid-template-columns: 1fr; }
+      .title { font-size: 1.7rem; }
+      .value { font-size: 1.7rem; }
+      .topbar { align-items:flex-start; }
+      .top-actions { gap:8px; }
+      .icon-btn, .primary-btn, .secondary-btn { padding: 11px 12px; }
+      .month-label { font-size:1.1rem; }
+      .bar-chart { gap:14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section id="homeView">
+      <div class="topbar">
+        <div>
+          <h1 class="title">LedgerBook</h1>
+          <div class="subtitle">Developed by Shriganesh Manurkar</div>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" id="reportsBtn" title="Reports">📊</button>
+          <button class="icon-btn" id="exportBtn" title="Export CSV">⤴️</button>
+          <button class="icon-btn" id="addBtn" title="Add Transaction">＋</button>
+        </div>
+      </div>
+
+      <div class="month-switch">
+        <button class="month-nav" id="prevMonthBtn">‹</button>
+        <div class="month-label" id="homeMonthLabel"></div>
+        <button class="month-nav" id="nextMonthBtn">›</button>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <div class="label">Income</div>
+          <div class="value green" id="incomeValue">₹0</div>
+        </div>
+        <div class="card">
+          <div class="label">Expense</div>
+          <div class="value red" id="expenseValue">₹0</div>
+        </div>
+        <div class="card full">
+          <div class="label">Savings</div>
+          <div class="value blue" id="savingsValue">₹0</div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2 class="section-title">Transactions</h2>
+      </div>
+
+      <div id="txEmpty" class="empty hidden">No transactions in this month yet.</div>
+      <div id="transactionList" class="transaction-list"></div>
+    </section>
+
+    <section id="reportsView" class="hidden">
+      <div class="topbar">
+        <div class="toolbar-inline">
+          <button class="icon-btn" id="backHomeBtn">‹</button>
+        </div>
+        <div></div>
+      </div>
+
+      <div class="section-head" style="margin-top:0;">
+        <h2 class="section-title">Reports</h2>
+      </div>
+
+      <div class="month-switch">
+        <button class="month-nav" id="reportPrevMonthBtn">‹</button>
+        <div class="month-label" id="reportMonthLabel"></div>
+        <button class="month-nav" id="reportNextMonthBtn">›</button>
+      </div>
+
+      <div class="filter-row">
+        <select id="reportCategoryFilter"></select>
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <div class="label">Income</div>
+          <div class="value green" id="reportIncomeValue">₹0</div>
+        </div>
+        <div class="card">
+          <div class="label">Expense</div>
+          <div class="value red" id="reportExpenseValue">₹0</div>
+        </div>
+        <div class="card full">
+          <div class="label">Savings</div>
+          <div class="value blue" id="reportSavingsValue">₹0</div>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-title">Income vs Expense</div>
+        <div id="incomeExpenseChart" class="bar-chart"></div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-title">Expense by Category</div>
+        <div id="expenseCategoryChart" class="hchart"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="transactionModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <button class="secondary-btn" id="cancelModalBtn">Cancel</button>
+        <div class="modal-title" id="modalTitle">Add Transaction</div>
+        <button class="primary-btn" id="saveTransactionBtn">Save</button>
+      </div>
+
+      <div class="form-grid">
+        <div class="full">
+          <div class="field-label">Transaction Type</div>
+          <div class="tabs">
+            <button class="seg-btn active" data-type="Expense" id="typeExpenseBtn">Expense</button>
+            <button class="seg-btn" data-type="Income" id="typeIncomeBtn">Income</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="field-label">Date</div>
+          <input type="date" id="txDate" />
+        </div>
+
+        <div>
+          <div class="field-label">Amount</div>
+          <input type="number" id="txAmount" placeholder="Amount" />
+        </div>
+
+        <div>
+          <div class="field-label">Category</div>
+          <select id="txCategory"></select>
+        </div>
+
+        <div>
+          <div class="field-label">Payment Mode</div>
+          <select id="txPaymentMode"></select>
+        </div>
+
+        <div>
+          <div class="field-label">Merchant / Source</div>
+          <input type="text" id="txMerchant" placeholder="Merchant / Source" />
+        </div>
+
+        <div class="full">
+          <div class="field-label">Note</div>
+          <textarea id="txNote" placeholder="Note"></textarea>
+        </div>
+
+        <div class="full">
+          <div class="field-label">Attachment</div>
+          <div class="attachment-row">
+            <label class="secondary-btn" for="photoInput">📷 Attach Photo</label>
+            <input class="hidden" id="photoInput" type="file" accept="image/*" />
+            <label class="secondary-btn" for="fileInput">📄 Attach File</label>
+            <input class="hidden" id="fileInput" type="file" accept=".pdf,image/*" />
+          </div>
+          <div id="attachmentStatus" class="note-banner">No attachment selected</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="detailModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <button class="secondary-btn" id="closeDetailBtn">Back</button>
+        <div class="modal-title">Transaction Detail</div>
+        <button class="primary-btn" id="editDetailBtn">Edit</button>
+      </div>
+
+      <div class="card detail-card">
+        <div id="detailGrid" class="detail-grid"></div>
+      </div>
+
+      <div class="section-head" style="margin-top:0;">
+        <h3 class="section-title">Attachment</h3>
+      </div>
+      <div id="attachmentBlock"></div>
+    </div>
+  </div>
+
+  <script>
+    const DB_NAME = 'ledgerbook_db';
+    const DB_VERSION = 1;
+    const TX_STORE = 'transactions';
+    const FILE_STORE = 'attachments';
+
+    const incomeCategories = [
+      'Salary', 'Bonus / Incentive', 'Interest', 'Refund', 'Gift Received', 'Rent Received', 'Side Income', 'Other Income'
+    ];
+    const expenseCategories = [
+      'Grocery & Vegetables', 'Milk & Daily Essentials', 'Dining / Snacks', 'School Fees', 'Tuition / Classes',
+      'Kids Shopping', 'Parents\' Medical', 'Family Medical', 'Medicines', 'Electricity', 'Gas', 'Water',
+      'Internet / Mobile', 'House Rent / EMI', 'Society / Maintenance', 'Travel', 'Fuel',
+      'Auto / Cab / Bus / Train', 'Vehicle Service', 'Insurance', 'Shopping', 'Clothing',
+      'Entertainment', 'Temple / Donation', 'Investments', 'Loan Repayment', 'Gifts / Functions', 'Miscellaneous'
+    ];
+    const paymentModes = ['Cash', 'UPI', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Auto Debit'];
+    const allReportCategories = ['All', ...Array.from(new Set([...incomeCategories, ...expenseCategories])).sort()];
+
+    let db;
+    let transactions = [];
+    let selectedMonth = startOfMonth(new Date());
+    let reportMonth = startOfMonth(new Date());
+    let reportCategory = 'All';
+    let editingId = null;
+    let selectedAttachment = null;
+    let currentDetailId = null;
+
+    const homeView = document.getElementById('homeView');
+    const reportsView = document.getElementById('reportsView');
+    const transactionList = document.getElementById('transactionList');
+    const txEmpty = document.getElementById('txEmpty');
+    const homeMonthLabel = document.getElementById('homeMonthLabel');
+    const reportMonthLabel = document.getElementById('reportMonthLabel');
+    const reportCategoryFilter = document.getElementById('reportCategoryFilter');
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(TX_STORE)) db.createObjectStore(TX_STORE, { keyPath: 'id' });
+          if (!db.objectStoreNames.contains(FILE_STORE)) db.createObjectStore(FILE_STORE, { keyPath: 'id' });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function tx(store, mode = 'readonly') {
+      return db.transaction(store, mode).objectStore(store);
+    }
+
+    function promisify(req) {
+      return new Promise((resolve, reject) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function loadTransactions() {
+      const items = await promisify(tx(TX_STORE).getAll());
+      transactions = items.sort((a, b) => new Date(b.dateISO) - new Date(a.dateISO));
+    }
+
+    async function saveTransactionRecord(record) {
+      await promisify(tx(TX_STORE, 'readwrite').put(record));
+      await loadTransactions();
+      renderAll();
+    }
+
+    async function deleteTransactionRecord(id) {
+      const record = transactions.find(t => t.id === id);
+      if (record?.attachmentId) {
+        await promisify(tx(FILE_STORE, 'readwrite').delete(record.attachmentId));
+      }
+      await promisify(tx(TX_STORE, 'readwrite').delete(id));
+      await loadTransactions();
+      renderAll();
+    }
+
+    async function saveAttachment(file) {
+      const id = crypto.randomUUID();
+      const record = {
+        id,
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        blob: file,
+        createdAt: Date.now()
+      };
+      await promisify(tx(FILE_STORE, 'readwrite').put(record));
+      return { id, name: file.name, type: record.type };
+    }
+
+    async function getAttachment(id) {
+      if (!id) return null;
+      return await promisify(tx(FILE_STORE).get(id));
+    }
+
+    function startOfMonth(date) {
+      const d = new Date(date);
+      d.setDate(1);
+      d.setHours(0,0,0,0);
+      return d;
+    }
+
+    function addMonths(date, delta) {
+      const d = new Date(date);
+      d.setMonth(d.getMonth() + delta);
+      return startOfMonth(d);
+    }
+
+    function monthTitle(date) {
+      return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(date);
+    }
+
+    function currency(n) {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n || 0);
+    }
+
+    function dateValueInput(date) {
+      return new Date(date).toISOString().slice(0, 10);
+    }
+
+    function formatDisplayDate(dateISO) {
+      return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(dateISO));
+    }
+
+    function monthTransactions(date) {
+      const y = date.getFullYear();
+      const m = date.getMonth();
+      return transactions.filter(t => {
+        const d = new Date(t.dateISO);
+        return d.getFullYear() === y && d.getMonth() === m;
+      });
+    }
+
+    function reportFilteredTransactions() {
+      let items = monthTransactions(reportMonth);
+      if (reportCategory !== 'All') items = items.filter(t => t.category === reportCategory);
+      return items;
+    }
+
+    function totals(items) {
+      const income = items.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+      const expense = items.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+      return { income, expense, savings: income - expense };
+    }
+
+    function categoryExpenseData(items) {
+      const map = {};
+      items.filter(t => t.type === 'Expense').forEach(t => {
+        map[t.category] = (map[t.category] || 0) + t.amount;
+      });
+      return Object.entries(map)
+        .map(([label, amount]) => ({ label, amount }))
+        .sort((a, b) => b.amount - a.amount);
+    }
+
+    function renderHome() {
+      const items = monthTransactions(selectedMonth);
+      const t = totals(items);
+
+      homeMonthLabel.textContent = monthTitle(selectedMonth);
+      document.getElementById('incomeValue').textContent = currency(t.income);
+      document.getElementById('expenseValue').textContent = currency(t.expense);
+      const savingsEl = document.getElementById('savingsValue');
+      savingsEl.textContent = currency(t.savings);
+      savingsEl.className = `value ${t.savings >= 0 ? 'blue' : 'orange'}`;
+
+      transactionList.innerHTML = '';
+      txEmpty.classList.toggle('hidden', items.length !== 0);
+      items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'tx';
+        row.innerHTML = `
+          <div>
+            <div class="tx-title">${escapeHtml(item.category)}</div>
+            <div class="tx-meta">${escapeHtml(item.type)} • ${escapeHtml(item.paymentMode)}${item.merchant ? ' • ' + escapeHtml(item.merchant) : ''}${item.attachmentName ? ' • 📎' : ''}</div>
+            ${item.note ? `<div class="tx-note">${escapeHtml(item.note)}</div>` : ''}
+            <div class="tx-date">${formatDisplayDate(item.dateISO)}</div>
+          </div>
+          <div class="tx-title ${item.type === 'Income' ? 'green' : 'red'}">${currency(item.amount)}</div>
+        `;
+        row.addEventListener('click', () => openDetail(item.id));
+        transactionList.appendChild(row);
+      });
+    }
+
+    function renderReports() {
+      reportMonthLabel.textContent = monthTitle(reportMonth);
+      reportCategoryFilter.innerHTML = allReportCategories.map(c => `<option ${c === reportCategory ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+
+      const items = reportFilteredTransactions();
+      const t = totals(items);
+      document.getElementById('reportIncomeValue').textContent = currency(t.income);
+      document.getElementById('reportExpenseValue').textContent = currency(t.expense);
+      const rs = document.getElementById('reportSavingsValue');
+      rs.textContent = currency(t.savings);
+      rs.className = `value ${t.savings >= 0 ? 'blue' : 'orange'}`;
+
+      const ieData = [
+        { label: 'Income', amount: t.income, color: 'var(--green)' },
+        { label: 'Expense', amount: t.expense, color: 'var(--red)' }
+      ];
+      renderVerticalBarChart(document.getElementById('incomeExpenseChart'), ieData);
+      renderHorizontalBarChart(document.getElementById('expenseCategoryChart'), categoryExpenseData(items));
+    }
+
+    function renderVerticalBarChart(container, data) {
+      container.innerHTML = '';
+      const max = Math.max(...data.map(d => d.amount), 1);
+      data.forEach(item => {
+        const height = Math.max(4, (item.amount / max) * 180);
+        const wrap = document.createElement('div');
+        wrap.className = 'bar-wrap';
+        wrap.innerHTML = `
+          <div class="bar-value">${currency(item.amount)}</div>
+          <div class="bar" style="height:${height}px;background:${item.color};"></div>
+          <div class="bar-label">${escapeHtml(item.label)}</div>
+        `;
+        container.appendChild(wrap);
+      });
+    }
+
+    function renderHorizontalBarChart(container, data) {
+      container.innerHTML = '';
+      if (!data.length) {
+        container.innerHTML = '<div class="small">No expense data available.</div>';
+        return;
+      }
+      const max = Math.max(...data.map(d => d.amount), 1);
+      data.forEach(item => {
+        const width = Math.max(2, (item.amount / max) * 100);
+        const row = document.createElement('div');
+        row.className = 'hrow';
+        row.innerHTML = `
+          <div class="small">${escapeHtml(item.label)}</div>
+          <div class="track"><div class="fill" style="width:${width}%"></div></div>
+          <div class="small">${currency(item.amount)}</div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function populateFormSelects(type = 'Expense') {
+      const cat = document.getElementById('txCategory');
+      const categories = type === 'Income' ? incomeCategories : expenseCategories;
+      cat.innerHTML = categories.map(c => `<option>${escapeHtml(c)}</option>`).join('');
+
+      const pay = document.getElementById('txPaymentMode');
+      pay.innerHTML = paymentModes.map(p => `<option>${escapeHtml(p)}</option>`).join('');
+    }
+
+    function setTypeButtons(type) {
+      document.getElementById('typeExpenseBtn').classList.toggle('active', type === 'Expense');
+      document.getElementById('typeIncomeBtn').classList.toggle('active', type === 'Income');
+      populateFormSelects(type);
+    }
+
+    function openAddModal(transaction = null) {
+      editingId = transaction?.id || null;
+      selectedAttachment = null;
+      document.getElementById('modalTitle').textContent = transaction ? 'Edit Transaction' : 'Add Transaction';
+      setTypeButtons(transaction?.type || 'Expense');
+      document.getElementById('txDate').value = dateValueInput(transaction?.dateISO || new Date());
+      document.getElementById('txAmount').value = transaction?.amount ?? '';
+      document.getElementById('txPaymentMode').value = transaction?.paymentMode || paymentModes[0];
+      document.getElementById('txMerchant').value = transaction?.merchant || '';
+      document.getElementById('txNote').value = transaction?.note || '';
+      document.getElementById('txCategory').value = transaction?.category || (transaction?.type === 'Income' ? incomeCategories[0] : expenseCategories[0]);
+      document.getElementById('attachmentStatus').textContent = transaction?.attachmentName ? `Current attachment: ${transaction.attachmentName}` : 'No attachment selected';
+      document.getElementById('photoInput').value = '';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('transactionModal').classList.remove('hidden');
+    }
+
+    function closeAddModal() {
+      document.getElementById('transactionModal').classList.add('hidden');
+    }
+
+    async function saveFromForm() {
+      const type = document.getElementById('typeIncomeBtn').classList.contains('active') ? 'Income' : 'Expense';
+      const amount = Number(document.getElementById('txAmount').value);
+      if (!amount || amount <= 0) {
+        alert('Enter a valid amount.');
+        return;
+      }
+
+      let record = editingId ? transactions.find(t => t.id === editingId) : null;
+      let attachmentId = record?.attachmentId || null;
+      let attachmentName = record?.attachmentName || null;
+      let attachmentType = record?.attachmentType || null;
+
+      if (selectedAttachment) {
+        const saved = await saveAttachment(selectedAttachment);
+        attachmentId = saved.id;
+        attachmentName = saved.name;
+        attachmentType = saved.type;
+      }
+
+      const newRecord = {
+        id: editingId || crypto.randomUUID(),
+        dateISO: document.getElementById('txDate').value,
+        type,
+        amount,
+        category: document.getElementById('txCategory').value,
+        paymentMode: document.getElementById('txPaymentMode').value,
+        merchant: document.getElementById('txMerchant').value.trim(),
+        note: document.getElementById('txNote').value.trim(),
+        attachmentId,
+        attachmentName,
+        attachmentType,
+        createdAt: record?.createdAt || Date.now(),
+        updatedAt: Date.now()
+      };
+
+      await saveTransactionRecord(newRecord);
+      closeAddModal();
+    }
+
+    async function openDetail(id) {
+      const record = transactions.find(t => t.id === id);
+      if (!record) return;
+      currentDetailId = id;
+
+      document.getElementById('detailGrid').innerHTML = `
+        <div class="k">Type</div><div>${escapeHtml(record.type)}</div>
+        <div class="k">Amount</div><div>${currency(record.amount)}</div>
+        <div class="k">Category</div><div>${escapeHtml(record.category)}</div>
+        <div class="k">Payment Mode</div><div>${escapeHtml(record.paymentMode)}</div>
+        <div class="k">Merchant</div><div>${record.merchant ? escapeHtml(record.merchant) : '-'}</div>
+        <div class="k">Date</div><div>${new Intl.DateTimeFormat('en-IN', { day:'numeric', month:'long', year:'numeric' }).format(new Date(record.dateISO))}</div>
+        <div class="k">Note</div><div>${record.note ? escapeHtml(record.note) : '-'}</div>
+      `;
+
+      const block = document.getElementById('attachmentBlock');
+      block.innerHTML = '';
+      if (!record.attachmentId) {
+        block.innerHTML = '<div class="small">No attachment added.</div>';
+      } else {
+        const file = await getAttachment(record.attachmentId);
+        if (!file) {
+          block.innerHTML = '<div class="small">Attachment could not be loaded.</div>';
+        } else if ((file.type || '').startsWith('image/')) {
+          const url = URL.createObjectURL(file.blob);
+          block.innerHTML = `
+            <div class="small" style="margin-bottom:10px;">${escapeHtml(file.name)}</div>
+            <img src="${url}" class="preview-img" alt="Receipt" />
+            <div style="margin-top:12px;"><button class="secondary-btn" id="shareAttachmentBtn">Open / Share Attachment</button></div>
+          `;
+          document.getElementById('shareAttachmentBtn').onclick = () => shareFile(file);
+        } else {
+          block.innerHTML = `
+            <div class="chip">📄 ${escapeHtml(file.name)}</div>
+            <div style="margin-top:12px;"><button class="primary-btn" id="shareAttachmentBtn">Open / Share Attachment</button></div>
+          `;
+          document.getElementById('shareAttachmentBtn').onclick = () => shareFile(file);
+        }
+      }
+
+      document.getElementById('detailModal').classList.remove('hidden');
+    }
+
+    function closeDetail() {
+      document.getElementById('detailModal').classList.add('hidden');
+      currentDetailId = null;
+    }
+
+    async function shareFile(fileRecord) {
+      const file = new File([fileRecord.blob], fileRecord.name, { type: fileRecord.type });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: fileRecord.name });
+        } catch (e) {}
+      } else {
+        const url = URL.createObjectURL(fileRecord.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileRecord.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+    }
+
+    function exportCSV() {
+      const items = monthTransactions(selectedMonth);
+      const header = ['Date','Type','Amount','Category','Payment Mode','Merchant','Note','Attachment'];
+      const rows = items.map(t => [
+        formatDisplayDate(t.dateISO), t.type, t.amount.toFixed(2), t.category, t.paymentMode, t.merchant || '', t.note || '', t.attachmentName || ''
+      ]);
+      const csv = [header, ...rows].map(row => row.map(v => `"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `LedgerBook_${selectedMonth.getFullYear()}_${String(selectedMonth.getMonth()+1).padStart(2,'0')}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1200);
+    }
+
+    function showReports() {
+      homeView.classList.add('hidden');
+      reportsView.classList.remove('hidden');
+      renderReports();
+    }
+
+    function showHome() {
+      reportsView.classList.add('hidden');
+      homeView.classList.remove('hidden');
+      renderHome();
+    }
+
+    function renderAll() {
+      renderHome();
+      renderReports();
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function bindEvents() {
+      document.getElementById('addBtn').onclick = () => openAddModal();
+      document.getElementById('cancelModalBtn').onclick = closeAddModal;
+      document.getElementById('saveTransactionBtn').onclick = saveFromForm;
+      document.getElementById('reportsBtn').onclick = showReports;
+      document.getElementById('backHomeBtn').onclick = showHome;
+      document.getElementById('exportBtn').onclick = exportCSV;
+
+      document.getElementById('prevMonthBtn').onclick = () => { selectedMonth = addMonths(selectedMonth, -1); renderHome(); };
+      document.getElementById('nextMonthBtn').onclick = () => { selectedMonth = addMonths(selectedMonth, 1); renderHome(); };
+      document.getElementById('reportPrevMonthBtn').onclick = () => { reportMonth = addMonths(reportMonth, -1); renderReports(); };
+      document.getElementById('reportNextMonthBtn').onclick = () => { reportMonth = addMonths(reportMonth, 1); renderReports(); };
+      reportCategoryFilter.onchange = e => { reportCategory = e.target.value; renderReports(); };
+
+      document.getElementById('typeExpenseBtn').onclick = () => setTypeButtons('Expense');
+      document.getElementById('typeIncomeBtn').onclick = () => setTypeButtons('Income');
+
+      document.getElementById('photoInput').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) {
+          selectedAttachment = file;
+          document.getElementById('attachmentStatus').textContent = `New photo selected: ${file.name}`;
+          document.getElementById('fileInput').value = '';
+        }
+      });
+      document.getElementById('fileInput').addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) {
+          selectedAttachment = file;
+          document.getElementById('attachmentStatus').textContent = `New file selected: ${file.name}`;
+          document.getElementById('photoInput').value = '';
+        }
+      });
+
+      document.getElementById('closeDetailBtn').onclick = closeDetail;
+      document.getElementById('editDetailBtn').onclick = () => {
+        const record = transactions.find(t => t.id === currentDetailId);
+        closeDetail();
+        if (record) openAddModal(record);
+      };
+
+      document.getElementById('detailModal').addEventListener('click', e => {
+        if (e.target.id === 'detailModal') closeDetail();
+      });
+      document.getElementById('transactionModal').addEventListener('click', e => {
+        if (e.target.id === 'transactionModal') closeAddModal();
+      });
+    }
+
+    async function init() {
+      db = await openDB();
+      bindEvents();
+      populateFormSelects('Expense');
+      await loadTransactions();
+      renderAll();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
